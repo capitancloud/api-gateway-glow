@@ -217,7 +217,11 @@ serve(async (req) => {
           />
         </div>
         <Button 
-          onClick={handleSearch} 
+          type="button"
+          onClick={() => {
+            console.log("Button clicked, query:", query);
+            handleSearch();
+          }}
           disabled={loading || !query.trim()}
           className="h-12 px-6 bg-primary text-primary-foreground hover:bg-primary/90 glow-primary"
         >
