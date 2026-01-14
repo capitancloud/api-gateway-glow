@@ -3,16 +3,17 @@
  * =================
  * 
  * Componente interattivo per dimostrare come funziona una chiamata API.
- * Include animazioni del flusso in tempo reale per visualizzare ogni step.
+ * Include animazioni del flusso in tempo reale e pannello JSON live.
  */
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { Search, Loader2, Cloud, Thermometer, Wind, Droplets, MapPin, AlertCircle } from "lucide-react";
+import { Search, Loader2, Cloud, Thermometer, Wind, Droplets, MapPin, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import { ApiFlowAnimation, FlowStep } from "@/components/ApiFlowAnimation";
+import { DemoLiveCodePanel } from "@/components/DemoLiveCodePanel";
 
 /**
  * Interfaccia per i dati meteo normalizzati
@@ -120,6 +121,7 @@ export const ApiDemo = () => {
     setLoading(true);
     setError(null);
     setResult(null);
+    setShowCode(false);
 
     // Step 1: Sending to backend
     setFlowStep("sending-to-backend");
@@ -155,11 +157,6 @@ export const ApiDemo = () => {
     }
 
     setLoading(false);
-    
-    // Reset to idle after a while
-    setTimeout(() => {
-      if (!loading) setFlowStep("idle");
-    }, 3000);
   };
 
   const handleReset = () => {
@@ -167,6 +164,11 @@ export const ApiDemo = () => {
     setResult(null);
     setError(null);
     setFlowStep("idle");
+    setShowCode(false);
+  };
+
+  const toggleCode = () => {
+    setShowCode(prev => !prev);
   };
 
   const exampleCode = `// Edge Function (backend) - NON espone l'API key
@@ -199,8 +201,45 @@ serve(async (req) => {
 
   return (
     <div className="space-y-6">
-      {/* Flow Animation */}
-      <ApiFlowAnimation currentStep={flowStep} query={query} />
+      {/* Two column layout: Flow + Live Code */}
+      <div className="grid lg:grid-cols-[1fr,350px] gap-6">
+        {/* Left: Flow Animation */}
+        <div>
+          <ApiFlowAnimation currentStep={flowStep} query={query} />
+        </div>
+
+        {/* Right: Live Code Panel */}
+        <div className="hidden lg:block">
+          <DemoLiveCodePanel 
+            flowStep={flowStep} 
+            query={query || "Roma"} 
+            rawData={result ? {
+              city: result.city,
+              country: result.country,
+              temperature: result.temperature,
+              description: result.description,
+              humidity: result.humidity,
+              windSpeed: result.windSpeed,
+            } : null}
+          />
+        </div>
+      </div>
+
+      {/* Mobile: Live Code Panel */}
+      <div className="lg:hidden">
+        <DemoLiveCodePanel 
+          flowStep={flowStep} 
+          query={query || "Roma"} 
+          rawData={result ? {
+            city: result.city,
+            country: result.country,
+            temperature: result.temperature,
+            description: result.description,
+            humidity: result.humidity,
+            windSpeed: result.windSpeed,
+          } : null}
+        />
+      </div>
 
       {/* Search input */}
       <div className="flex gap-3">
@@ -352,11 +391,22 @@ serve(async (req) => {
       {/* Show code toggle */}
       <div className="flex justify-center">
         <Button
-          variant="ghost"
-          onClick={() => setShowCode(!showCode)}
-          className="text-muted-foreground hover:text-primary"
+          type="button"
+          variant="outline"
+          onClick={toggleCode}
+          className="text-muted-foreground hover:text-primary border-border hover:border-primary gap-2"
         >
-          {showCode ? "Nascondi codice" : "Mostra codice backend"}
+          {showCode ? (
+            <>
+              <ChevronUp className="w-4 h-4" />
+              Nascondi codice backend
+            </>
+          ) : (
+            <>
+              <ChevronDown className="w-4 h-4" />
+              Mostra codice backend
+            </>
+          )}
         </Button>
       </div>
 
@@ -367,6 +417,8 @@ serve(async (req) => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
           >
             <CodeBlock code={exampleCode} language="typescript" showLineNumbers />
           </motion.div>
