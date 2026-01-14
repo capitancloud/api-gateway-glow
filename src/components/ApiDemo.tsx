@@ -168,7 +168,8 @@ export const ApiDemo = () => {
   };
 
   const toggleCode = () => {
-    setShowCode(prev => !prev);
+    console.log("Toggle code clicked, current showCode:", showCode);
+    setShowCode(!showCode);
   };
 
   const exampleCode = `// Edge Function (backend) - NON espone l'API key
