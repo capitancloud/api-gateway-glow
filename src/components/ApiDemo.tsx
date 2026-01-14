@@ -8,7 +8,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { Search, Loader2, Cloud, Thermometer, Wind, Droplets, MapPin, AlertCircle, ChevronDown, ChevronUp, Gauge } from "lucide-react";
+import { Search, Loader2, Cloud, Thermometer, Wind, Droplets, MapPin, AlertCircle, Gauge, Play, Pause, ArrowRight } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -18,9 +18,10 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CodeBlock } from "@/components/ui/CodeBlock";
 import { ApiFlowAnimation, FlowStep } from "@/components/ApiFlowAnimation";
 import { DemoLiveCodePanel } from "@/components/DemoLiveCodePanel";
+import { FlowTimeline } from "@/components/FlowTimeline";
+import { StepExplanationPanel } from "@/components/StepExplanationPanel";
 
 /**
  * Interfaccia per i dati meteo normalizzati
@@ -116,12 +117,74 @@ export const ApiDemo = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WeatherData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showCode, setShowCode] = useState(false);
   const [flowStep, setFlowStep] = useState<FlowStep>("idle");
   const [animationSpeed, setAnimationSpeed] = useState<"slow" | "normal" | "fast">("normal");
+  const [manualMode, setManualMode] = useState(false);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [pendingQuery, setPendingQuery] = useState<string>("");
+
+  // Ordine degli step per la navigazione manuale
+  const stepOrder: FlowStep[] = [
+    "sending-to-backend",
+    "backend-processing",
+    "calling-api",
+    "api-responding",
+    "normalizing",
+    "complete"
+  ];
+
+  // Messaggi per ogni step
+  const stepMessages: Record<FlowStep, string> = {
+    idle: "In attesa di una richiesta...",
+    "sending-to-backend": "📤 Invio richiesta al backend...",
+    "backend-processing": "⚙️ Backend: lettura API key dalle variabili d'ambiente...",
+    "calling-api": "🌐 Chiamata all'API esterna in corso...",
+    "api-responding": "📥 Ricezione dati grezzi dall'API...",
+    normalizing: "✨ Normalizzazione dei dati in corso...",
+    complete: "✅ Dati pronti per la visualizzazione!",
+    error: "❌ Errore nella chiamata API",
+  };
 
   // Moltiplicatore velocità: slow = 2x più lento, normal = 1x, fast = 0.5x più veloce
   const speedMultiplier = animationSpeed === "slow" ? 2 : animationSpeed === "fast" ? 0.5 : 1;
+
+  /**
+   * Procede al prossimo step in modalità manuale
+   */
+  const nextStep = () => {
+    if (currentStepIndex < stepOrder.length - 1) {
+      const nextIndex = currentStepIndex + 1;
+      setCurrentStepIndex(nextIndex);
+      const nextStep = stepOrder[nextIndex];
+      setFlowStep(nextStep);
+
+      // Se siamo allo step "normalizing", verifica i dati
+      if (nextStep === "normalizing") {
+        const normalizedQuery = pendingQuery.toLowerCase().replace(/\s+/g, "_");
+        const data = mockWeatherData[normalizedQuery];
+        
+        if (data) {
+          // Procedi normalmente
+        } else {
+          setFlowStep("error");
+          setError(`Città "${pendingQuery}" non trovata. Prova: Roma, Milano, Napoli, Londra, Parigi, Tokyo, New York`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Se siamo allo step "complete", finalizza
+      if (nextStep === "complete") {
+        const normalizedQuery = pendingQuery.toLowerCase().replace(/\s+/g, "_");
+        const data = mockWeatherData[normalizedQuery];
+        if (data) {
+          const normalizedData = normalizeWeatherData(data);
+          setResult(normalizedData);
+        }
+        setLoading(false);
+      }
+    }
+  };
 
   /**
    * Simula una chiamata API con animazioni step-by-step
@@ -132,42 +195,49 @@ export const ApiDemo = () => {
     setLoading(true);
     setError(null);
     setResult(null);
-    setShowCode(false);
+    setPendingQuery(query);
 
-    // Step 1: Sending to backend
-    setFlowStep("sending-to-backend");
-    await new Promise((resolve) => setTimeout(resolve, 800 * speedMultiplier));
-
-    // Step 2: Backend processing (loading API key)
-    setFlowStep("backend-processing");
-    await new Promise((resolve) => setTimeout(resolve, 1000 * speedMultiplier));
-
-    // Step 3: Calling external API
-    setFlowStep("calling-api");
-    await new Promise((resolve) => setTimeout(resolve, 1000 * speedMultiplier));
-
-    // Step 4: Receiving response
-    setFlowStep("api-responding");
-    await new Promise((resolve) => setTimeout(resolve, 800 * speedMultiplier));
-
-    const normalizedQuery = query.toLowerCase().replace(/\s+/g, "_");
-    const data = mockWeatherData[normalizedQuery];
-
-    if (data) {
-      // Step 5: Normalizing data
-      setFlowStep("normalizing");
-      await new Promise((resolve) => setTimeout(resolve, 1200 * speedMultiplier));
-
-      // Step 6: Complete
-      setFlowStep("complete");
-      const normalizedData = normalizeWeatherData(data);
-      setResult(normalizedData);
+    if (manualMode) {
+      // Modalità manuale: inizia dal primo step
+      setCurrentStepIndex(0);
+      setFlowStep(stepOrder[0]);
     } else {
-      setFlowStep("error");
-      setError(`Città "${query}" non trovata. Prova: Roma, Milano, Napoli, Londra, Parigi, Tokyo, New York`);
-    }
+      // Modalità automatica: procedi automaticamente
+      // Step 1: Sending to backend
+      setFlowStep("sending-to-backend");
+      await new Promise((resolve) => setTimeout(resolve, 800 * speedMultiplier));
 
-    setLoading(false);
+      // Step 2: Backend processing (loading API key)
+      setFlowStep("backend-processing");
+      await new Promise((resolve) => setTimeout(resolve, 1000 * speedMultiplier));
+
+      // Step 3: Calling external API
+      setFlowStep("calling-api");
+      await new Promise((resolve) => setTimeout(resolve, 1000 * speedMultiplier));
+
+      // Step 4: Receiving response
+      setFlowStep("api-responding");
+      await new Promise((resolve) => setTimeout(resolve, 800 * speedMultiplier));
+
+      const normalizedQuery = query.toLowerCase().replace(/\s+/g, "_");
+      const data = mockWeatherData[normalizedQuery];
+
+      if (data) {
+        // Step 5: Normalizing data
+        setFlowStep("normalizing");
+        await new Promise((resolve) => setTimeout(resolve, 1200 * speedMultiplier));
+
+        // Step 6: Complete
+        setFlowStep("complete");
+        const normalizedData = normalizeWeatherData(data);
+        setResult(normalizedData);
+      } else {
+        setFlowStep("error");
+        setError(`Città "${query}" non trovata. Prova: Roma, Milano, Napoli, Londra, Parigi, Tokyo, New York`);
+      }
+
+      setLoading(false);
+    }
   };
 
   const handleReset = () => {
@@ -175,43 +245,33 @@ export const ApiDemo = () => {
     setResult(null);
     setError(null);
     setFlowStep("idle");
-    setShowCode(false);
+    setCurrentStepIndex(0);
+    setPendingQuery("");
   };
-
-  const toggleCode = () => {
-    setShowCode((prev) => !prev);
-  };
-
-  const exampleCode = `// Edge Function (backend) - NON espone l'API key
-import { serve } from "https://deno.land/std/http/server.ts";
-
-serve(async (req) => {
-  // La API key è nelle variabili d'ambiente (sicura!)
-  const API_KEY = Deno.env.get("WEATHER_API_KEY");
-  
-  const { city } = await req.json();
-  
-  // Chiamata all'API esterna
-  const response = await fetch(
-    \`https://api.openweathermap.org/data/2.5/weather?q=\${city}&appid=\${API_KEY}\`
-  );
-  
-  const rawData = await response.json();
-  
-  // Normalizzazione dei dati
-  const normalized = {
-    city: rawData.name,
-    temperature: Math.round(rawData.main.temp - 273.15),
-    description: rawData.weather[0].description,
-    humidity: rawData.main.humidity,
-    windSpeed: rawData.wind.speed
-  };
-  
-  return new Response(JSON.stringify(normalized));
-});`;
 
   return (
     <div className="space-y-6">
+      {/* Timeline and Explanation Panel - Side by side on larger screens */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Timeline */}
+        <div className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border/50 p-6">
+          <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <span>📊</span>
+            Timeline del Flusso
+          </h3>
+          <FlowTimeline currentStep={flowStep} />
+        </div>
+
+        {/* Explanation Panel */}
+        <div className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border/50 p-6">
+          <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <span>📚</span>
+            Spiegazione Step
+          </h3>
+          <StepExplanationPanel currentStep={flowStep} query={query} />
+        </div>
+      </div>
+
       {/* Flow Animation Box */}
       <div className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border/50 p-6">
         <ApiFlowAnimation currentStep={flowStep} query={query} />
@@ -236,21 +296,85 @@ serve(async (req) => {
       {/* Search input */}
       <div className="bg-card/30 backdrop-blur-sm rounded-2xl border border-border/50 p-6">
         <div className="flex flex-col gap-4">
-          {/* Speed selector */}
-          <div className="flex items-center gap-3">
-            <Gauge className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Velocità animazione:</span>
-            <Select value={animationSpeed} onValueChange={(v) => setAnimationSpeed(v as "slow" | "normal" | "fast")}>
-              <SelectTrigger className="w-[140px] h-9 bg-muted border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="slow">🐢 Lenta</SelectItem>
-                <SelectItem value="normal">🚶 Normale</SelectItem>
-                <SelectItem value="fast">🚀 Veloce</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Controls row */}
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Speed selector */}
+            {!manualMode && (
+              <div className="flex items-center gap-3">
+                <Gauge className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Velocità animazione:</span>
+                <Select value={animationSpeed} onValueChange={(v) => setAnimationSpeed(v as "slow" | "normal" | "fast")}>
+                  <SelectTrigger className="w-[140px] h-9 bg-muted border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="slow">🐢 Lenta</SelectItem>
+                    <SelectItem value="normal">🚶 Normale</SelectItem>
+                    <SelectItem value="fast">🚀 Veloce</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {/* Manual mode toggle */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Modalità:</span>
+              <Button
+                type="button"
+                variant={manualMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  const newManualMode = !manualMode;
+                  setManualMode(newManualMode);
+                  // Se si passa a manuale durante una ricerca, resetta
+                  if (newManualMode && loading) {
+                    handleReset();
+                  }
+                }}
+                disabled={loading && !manualMode}
+                className="gap-2"
+              >
+                {manualMode ? (
+                  <>
+                    <Pause className="w-4 h-4" />
+                    Manuale
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" />
+                    Automatica
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
+
+          {/* Manual step control */}
+          {manualMode && loading && flowStep !== "complete" && flowStep !== "error" && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-center gap-4 p-4 bg-primary/10 rounded-lg border border-primary/20"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  Step {currentStepIndex + 1} di {stepOrder.length}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({stepMessages[flowStep]})
+                </span>
+              </div>
+              <Button
+                type="button"
+                onClick={nextStep}
+                className="gap-2"
+                disabled={currentStepIndex >= stepOrder.length - 1}
+              >
+                <ArrowRight className="w-4 h-4" />
+                Prossimo step
+              </Button>
+            </motion.div>
+          )}
           
           {/* Search row */}
           <div className="flex gap-4">
@@ -394,43 +518,6 @@ serve(async (req) => {
                 Nuova ricerca
               </Button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Show code toggle */}
-      <div className="flex justify-center">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={toggleCode}
-          className="text-muted-foreground hover:text-primary border-border hover:border-primary gap-2"
-        >
-          {showCode ? (
-            <>
-              <ChevronUp className="w-4 h-4" />
-              Nascondi codice backend
-            </>
-          ) : (
-            <>
-              <ChevronDown className="w-4 h-4" />
-              Mostra codice backend
-            </>
-          )}
-        </Button>
-      </div>
-
-      {/* Code example */}
-      <AnimatePresence>
-        {showCode && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ duration: 0.2 }}
-            className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-4"
-          >
-            <CodeBlock code={exampleCode} language="typescript" showLineNumbers />
           </motion.div>
         )}
       </AnimatePresence>
