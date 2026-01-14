@@ -4,254 +4,245 @@
  * 
  * Un diagramma animato che mostra il flusso continuo dei dati
  * tra Frontend, Backend e API Esterna con particelle in movimento.
+ * Sincronizzato con il LiveCodePanel.
  */
 
 import { motion } from "framer-motion";
-import { Monitor, Server, Globe, Database, Lock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Monitor, Server, Globe, Lock } from "lucide-react";
+import { LiveCodePanel } from "./LiveCodePanel";
+
+type AnimationPhase = "idle" | "request" | "backend" | "external" | "response" | "complete";
 
 export const AnimatedFlowDiagram = () => {
-  return (
-    <div className="relative py-12 overflow-hidden">
-      {/* Background glow */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-[600px] h-[200px] bg-primary/5 blur-3xl rounded-full" />
-      </div>
+  const [phase, setPhase] = useState<AnimationPhase>("idle");
 
-      <div className="relative max-w-4xl mx-auto">
-        {/* Title */}
-        <motion.p 
-          className="text-center text-muted-foreground mb-8 text-sm uppercase tracking-widest"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          Flusso di una chiamata API
-        </motion.p>
+  // Sync animation phases
+  useEffect(() => {
+    const phases: AnimationPhase[] = ["request", "backend", "external", "response", "complete"];
+    let currentIndex = 0;
+    let interval: NodeJS.Timeout;
+
+    const runAnimation = () => {
+      interval = setInterval(() => {
+        setPhase(phases[currentIndex]);
+        currentIndex++;
+        
+        if (currentIndex >= phases.length) {
+          setTimeout(() => {
+            currentIndex = 0;
+            setPhase("idle");
+          }, 3000);
+          clearInterval(interval);
+        }
+      }, 2000);
+    };
+
+    const startTimeout = setTimeout(() => {
+      runAnimation();
+    }, 1500);
+
+    const loopInterval = setInterval(() => {
+      runAnimation();
+    }, 18000);
+
+    return () => {
+      clearTimeout(startTimeout);
+      clearInterval(interval);
+      clearInterval(loopInterval);
+    };
+  }, []);
+
+  const isActive = (p: AnimationPhase | AnimationPhase[]) => {
+    if (Array.isArray(p)) return p.includes(phase);
+    return phase === p;
+  };
+
+  const isPast = (p: AnimationPhase) => {
+    const order: AnimationPhase[] = ["idle", "request", "backend", "external", "response", "complete"];
+    return order.indexOf(phase) > order.indexOf(p);
+  };
+
+  return (
+    <div className="grid lg:grid-cols-[1fr,380px] gap-6 p-6">
+      {/* Left: Flow Diagram */}
+      <div className="relative py-8">
+        {/* Background glow */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-[500px] h-[150px] bg-primary/5 blur-3xl rounded-full" />
+        </div>
 
         {/* Main flow container */}
-        <div className="flex items-center justify-between px-4 md:px-8">
+        <div className="flex items-center justify-between relative z-10 px-4">
           
           {/* Frontend Node */}
-          <motion.div 
-            className="flex flex-col items-center z-10"
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
+          <motion.div className="flex flex-col items-center">
             <motion.div 
-              className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center backdrop-blur-sm"
-              whileHover={{ scale: 1.05, borderColor: "hsl(var(--primary))" }}
-              animate={{ 
-                boxShadow: [
-                  "0 0 20px hsl(185 100% 50% / 0.1)",
-                  "0 0 40px hsl(185 100% 50% / 0.2)",
-                  "0 0 20px hsl(185 100% 50% / 0.1)"
-                ]
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
+              className={`w-20 h-20 rounded-2xl flex items-center justify-center backdrop-blur-sm transition-all duration-300 ${
+                isActive("request") 
+                  ? "bg-primary/30 border-2 border-primary glow-primary-strong" 
+                  : isPast("request")
+                  ? "bg-success/20 border border-success/50"
+                  : "bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30"
+              }`}
+              animate={isActive("request") ? { scale: [1, 1.05, 1] } : {}}
+              transition={{ duration: 0.5, repeat: isActive("request") ? Infinity : 0 }}
             >
-              <Monitor className="w-10 h-10 md:w-12 md:h-12 text-primary" />
+              <Monitor className={`w-10 h-10 ${
+                isActive("request") ? "text-primary" : 
+                isPast("request") ? "text-success" : "text-primary/70"
+              }`} />
             </motion.div>
-            <span className="mt-3 font-semibold text-foreground">Frontend</span>
+            <span className="mt-3 font-semibold text-foreground text-sm">Frontend</span>
             <span className="text-xs text-muted-foreground">React App</span>
           </motion.div>
 
-          {/* Connection Line 1 with animated particles */}
-          <div className="flex-1 relative h-20 mx-2 md:mx-4">
-            {/* Static line */}
+          {/* Connection 1 */}
+          <div className="flex-1 relative h-16 mx-4">
             <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="lineGradient1" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="hsl(185 100% 50% / 0.5)" />
-                  <stop offset="50%" stopColor="hsl(185 100% 50% / 0.2)" />
-                  <stop offset="100%" stopColor="hsl(185 100% 50% / 0.5)" />
-                </linearGradient>
-              </defs>
-              <line 
-                x1="0" y1="50%" x2="100%" y2="50%" 
-                stroke="url(#lineGradient1)" 
-                strokeWidth="2"
-                strokeDasharray="8 4"
+              <line x1="0" y1="50%" x2="100%" y2="50%" 
+                stroke={isPast("request") ? "hsl(142 76% 45% / 0.5)" : "hsl(185 100% 50% / 0.3)"} 
+                strokeWidth="2" strokeDasharray="6 4"
               />
             </svg>
 
-            {/* Animated request packet (going right) */}
-            <motion.div
-              className="absolute top-1/2 -translate-y-1/2 flex items-center gap-1"
-              initial={{ left: "0%" }}
-              animate={{ left: ["0%", "100%"] }}
-              transition={{ 
-                duration: 2,
-                repeat: Infinity,
-                ease: "linear",
-                repeatDelay: 1
-              }}
-            >
-              <div className="w-3 h-3 rounded-full bg-primary glow-primary" />
-              <motion.span 
-                className="text-[10px] text-primary font-mono whitespace-nowrap"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0, 1, 1, 0] }}
-                transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+            {/* Request packet */}
+            {isActive("request") && (
+              <motion.div
+                className="absolute top-1/2 -translate-y-1/2 flex items-center gap-2"
+                initial={{ left: "0%" }}
+                animate={{ left: "90%" }}
+                transition={{ duration: 1.8, ease: "linear" }}
               >
-                {"{ city: 'Roma' }"}
-              </motion.span>
-            </motion.div>
+                <div className="w-4 h-4 rounded-full bg-primary glow-primary-strong" />
+                <span className="text-[10px] text-primary font-mono bg-background/80 px-1 rounded">
+                  POST
+                </span>
+              </motion.div>
+            )}
 
-            {/* Animated response packet (going left) - delayed */}
-            <motion.div
-              className="absolute top-1/2 -translate-y-1/2 translate-y-4 flex items-center gap-1"
-              initial={{ right: "0%" }}
-              animate={{ right: ["0%", "100%"] }}
-              transition={{ 
-                duration: 2,
-                repeat: Infinity,
-                ease: "linear",
-                delay: 3,
-                repeatDelay: 1
-              }}
-            >
-              <motion.span 
-                className="text-[10px] text-success font-mono whitespace-nowrap"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0, 1, 1, 0] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 3, repeatDelay: 1 }}
+            {/* Response packet */}
+            {isActive("response") && (
+              <motion.div
+                className="absolute top-1/2 -translate-y-1/2 flex items-center gap-2"
+                initial={{ right: "0%" }}
+                animate={{ right: "90%" }}
+                transition={{ duration: 1.8, ease: "linear" }}
               >
-                {"{ temp: 22°C }"}
-              </motion.span>
-              <div className="w-3 h-3 rounded-full bg-success" style={{ boxShadow: "0 0 10px hsl(142 76% 45% / 0.5)" }} />
-            </motion.div>
+                <span className="text-[10px] text-success font-mono bg-background/80 px-1 rounded">
+                  200 OK
+                </span>
+                <div className="w-4 h-4 rounded-full bg-success" style={{ boxShadow: "0 0 15px hsl(142 76% 45% / 0.6)" }} />
+              </motion.div>
+            )}
           </div>
 
           {/* Backend Node */}
-          <motion.div 
-            className="flex flex-col items-center z-10"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-          >
+          <motion.div className="flex flex-col items-center">
             <motion.div 
-              className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-secondary to-secondary/50 border border-primary/20 flex items-center justify-center backdrop-blur-sm relative"
-              whileHover={{ scale: 1.05 }}
-              animate={{ 
-                boxShadow: [
-                  "0 0 20px hsl(185 100% 50% / 0.1)",
-                  "0 0 30px hsl(185 100% 50% / 0.15)",
-                  "0 0 20px hsl(185 100% 50% / 0.1)"
-                ]
-              }}
-              transition={{ duration: 3, repeat: Infinity, delay: 0.5 }}
+              className={`w-20 h-20 rounded-2xl flex items-center justify-center backdrop-blur-sm relative transition-all duration-300 ${
+                isActive(["backend", "external", "response"])
+                  ? "bg-primary/30 border-2 border-primary glow-primary-strong" 
+                  : isPast("response")
+                  ? "bg-success/20 border border-success/50"
+                  : "bg-gradient-to-br from-secondary to-secondary/50 border border-primary/20"
+              }`}
+              animate={isActive("backend") ? { rotate: [0, 5, -5, 0] } : {}}
+              transition={{ duration: 0.5, repeat: isActive("backend") ? Infinity : 0 }}
             >
-              <Server className="w-10 h-10 md:w-12 md:h-12 text-primary" />
+              <Server className={`w-10 h-10 ${
+                isActive(["backend", "external", "response"]) ? "text-primary" : 
+                isPast("response") ? "text-success" : "text-primary/70"
+              }`} />
               
               {/* API Key indicator */}
               <motion.div 
-                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-warning/20 border border-warning/50 flex items-center justify-center"
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
+                className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center ${
+                  isActive("backend") ? "bg-warning border-2 border-warning" : "bg-warning/20 border border-warning/50"
+                }`}
+                animate={isActive("backend") ? { scale: [1, 1.2, 1] } : {}}
+                transition={{ duration: 0.5, repeat: isActive("backend") ? Infinity : 0 }}
               >
-                <Lock className="w-3 h-3 text-warning" />
+                <Lock className="w-3 h-3 text-warning-foreground" />
               </motion.div>
             </motion.div>
-            <span className="mt-3 font-semibold text-foreground">Backend</span>
+            <span className="mt-3 font-semibold text-foreground text-sm">Backend</span>
             <span className="text-xs text-muted-foreground">Edge Function</span>
-            
-            {/* Secret badge */}
-            <motion.div 
-              className="mt-2 flex items-center gap-1 text-[10px] bg-warning/10 text-warning px-2 py-0.5 rounded-full"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1 }}
-            >
-              <Database className="w-3 h-3" />
-              <span>API_KEY sicura</span>
-            </motion.div>
           </motion.div>
 
-          {/* Connection Line 2 with animated particles */}
-          <div className="flex-1 relative h-20 mx-2 md:mx-4">
-            {/* Static line */}
+          {/* Connection 2 */}
+          <div className="flex-1 relative h-16 mx-4">
             <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-              <line 
-                x1="0" y1="50%" x2="100%" y2="50%" 
-                stroke="url(#lineGradient1)" 
-                strokeWidth="2"
-                strokeDasharray="8 4"
+              <line x1="0" y1="50%" x2="100%" y2="50%" 
+                stroke={isPast("external") ? "hsl(142 76% 45% / 0.5)" : "hsl(185 100% 50% / 0.3)"} 
+                strokeWidth="2" strokeDasharray="6 4"
               />
             </svg>
 
-            {/* Animated request to external API */}
-            <motion.div
-              className="absolute top-1/2 -translate-y-1/2"
-              initial={{ left: "0%" }}
-              animate={{ left: ["0%", "100%"] }}
-              transition={{ 
-                duration: 1.5,
-                repeat: Infinity,
-                ease: "linear",
-                delay: 2.5,
-                repeatDelay: 1.5
-              }}
-            >
-              <motion.div 
-                className="w-4 h-4 rounded bg-primary/80 flex items-center justify-center"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            {/* External API request */}
+            {isActive("external") && (
+              <motion.div
+                className="absolute top-1/2 -translate-y-1/2"
+                initial={{ left: "0%" }}
+                animate={{ left: "90%" }}
+                transition={{ duration: 1.8, ease: "linear" }}
               >
-                <div className="w-2 h-2 rounded-sm bg-primary" />
+                <motion.div 
+                  className="w-5 h-5 rounded bg-primary flex items-center justify-center"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  <div className="w-2.5 h-2.5 rounded-sm bg-primary-foreground" />
+                </motion.div>
               </motion.div>
-            </motion.div>
-
-            {/* Animated response from external API */}
-            <motion.div
-              className="absolute top-1/2 -translate-y-1/2 translate-y-4"
-              initial={{ right: "0%" }}
-              animate={{ right: ["0%", "100%"] }}
-              transition={{ 
-                duration: 1.5,
-                repeat: Infinity,
-                ease: "linear",
-                delay: 4.5,
-                repeatDelay: 1.5
-              }}
-            >
-              <motion.div 
-                className="w-4 h-4 rounded bg-success/80 flex items-center justify-center"
-              >
-                <span className="text-[8px]">📦</span>
-              </motion.div>
-            </motion.div>
+            )}
           </div>
 
           {/* External API Node */}
-          <motion.div 
-            className="flex flex-col items-center z-10"
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.7 }}
-          >
+          <motion.div className="flex flex-col items-center">
             <motion.div 
-              className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-accent to-accent/50 border border-primary/20 flex items-center justify-center backdrop-blur-sm"
-              whileHover={{ scale: 1.05 }}
-              animate={{ 
-                rotate: [0, 5, -5, 0],
-              }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className={`w-20 h-20 rounded-2xl flex items-center justify-center backdrop-blur-sm transition-all duration-300 ${
+                isActive("external")
+                  ? "bg-primary/30 border-2 border-primary glow-primary-strong" 
+                  : isPast("external")
+                  ? "bg-success/20 border border-success/50"
+                  : "bg-gradient-to-br from-accent to-accent/50 border border-primary/20"
+              }`}
+              animate={isActive("external") ? { scale: [1, 1.1, 1] } : {}}
+              transition={{ duration: 0.8, repeat: isActive("external") ? Infinity : 0 }}
             >
-              <Globe className="w-10 h-10 md:w-12 md:h-12 text-primary" />
+              <Globe className={`w-10 h-10 ${
+                isActive("external") ? "text-primary" : 
+                isPast("external") ? "text-success" : "text-primary/70"
+              }`} />
             </motion.div>
-            <span className="mt-3 font-semibold text-foreground">API Esterna</span>
-            <span className="text-xs text-muted-foreground">OpenWeatherMap</span>
+            <span className="mt-3 font-semibold text-foreground text-sm">API Esterna</span>
+            <span className="text-xs text-muted-foreground">Weather API</span>
           </motion.div>
         </div>
 
-        {/* Legend */}
+        {/* Status indicator */}
         <motion.div 
-          className="flex justify-center gap-6 mt-10"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2 }}
+          className="text-center mt-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
         >
+          <span className={`text-sm font-medium px-4 py-2 rounded-full ${
+            phase === "idle" ? "bg-muted text-muted-foreground" :
+            phase === "complete" ? "bg-success/20 text-success" :
+            "bg-primary/20 text-primary"
+          }`}>
+            {phase === "idle" && "🔄 In attesa..."}
+            {phase === "request" && "📤 Invio richiesta..."}
+            {phase === "backend" && "🔑 Caricamento API Key..."}
+            {phase === "external" && "🌐 Chiamata API esterna..."}
+            {phase === "response" && "📥 Ricezione risposta..."}
+            {phase === "complete" && "✅ Completato!"}
+          </span>
+        </motion.div>
+
+        {/* Legend */}
+        <div className="flex justify-center gap-6 mt-6">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <div className="w-2 h-2 rounded-full bg-primary" />
             <span>Richiesta</span>
@@ -262,9 +253,14 @@ export const AnimatedFlowDiagram = () => {
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Lock className="w-3 h-3 text-warning" />
-            <span>Credenziali sicure</span>
+            <span>API Key sicura</span>
           </div>
-        </motion.div>
+        </div>
+      </div>
+
+      {/* Right: Live Code Panel */}
+      <div className="hidden lg:block">
+        <LiveCodePanel />
       </div>
     </div>
   );
