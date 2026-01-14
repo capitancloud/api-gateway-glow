@@ -200,11 +200,11 @@ serve(async (req) => {
 });`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Two column layout: Flow + Live Code */}
-      <div className="grid lg:grid-cols-[1fr,350px] gap-6">
+      <div className="grid lg:grid-cols-[1fr,380px] gap-8">
         {/* Left: Flow Animation */}
-        <div>
+        <div className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border/50 p-6">
           <ApiFlowAnimation currentStep={flowStep} query={query} />
         </div>
 
@@ -242,7 +242,8 @@ serve(async (req) => {
       </div>
 
       {/* Search input */}
-      <div className="flex gap-3">
+      <div className="bg-card/30 backdrop-blur-sm rounded-2xl border border-border/50 p-6">
+        <div className="flex gap-4">
         <div className="relative flex-1">
           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
@@ -255,21 +256,22 @@ serve(async (req) => {
             className="pl-10 h-12 bg-muted border-border focus:border-primary focus:ring-primary disabled:opacity-50"
           />
         </div>
-        <Button 
-          type="button"
-          onClick={() => {
-            console.log("Button clicked, query:", query);
-            handleSearch();
-          }}
-          disabled={loading || !query.trim()}
-          className="h-12 px-6 bg-primary text-primary-foreground hover:bg-primary/90 glow-primary"
-        >
-          {loading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Search className="w-5 h-5" />
-          )}
-        </Button>
+          <Button 
+            type="button"
+            onClick={() => {
+              console.log("Button clicked, query:", query);
+              handleSearch();
+            }}
+            disabled={loading || !query.trim()}
+            className="h-12 px-8 bg-primary text-primary-foreground hover:bg-primary/90 glow-primary"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Search className="w-5 h-5" />
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Results area */}
@@ -306,7 +308,7 @@ serve(async (req) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="glass rounded-xl overflow-hidden"
+            className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border/50 overflow-hidden"
           >
             {/* Weather header */}
             <div className="p-6 border-b border-border">
@@ -329,7 +331,7 @@ serve(async (req) => {
             </div>
 
             {/* Weather stats */}
-            <div className="grid grid-cols-3 gap-4 p-6">
+            <div className="grid grid-cols-3 gap-6 p-8">
               <motion.div 
                 className="text-center"
                 initial={{ opacity: 0, y: 20 }}
@@ -365,7 +367,7 @@ serve(async (req) => {
             </div>
 
             {/* Data normalized badge */}
-            <div className="px-6 pb-6 flex items-center justify-between">
+            <div className="px-8 pb-8 pt-4 flex items-center justify-between border-t border-border/30">
               <motion.div 
                 className="flex items-center gap-2 text-xs text-success bg-success/10 px-3 py-2 rounded-md"
                 initial={{ opacity: 0, x: -20 }}
