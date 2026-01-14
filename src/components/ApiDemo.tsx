@@ -168,8 +168,7 @@ export const ApiDemo = () => {
   };
 
   const toggleCode = () => {
-    console.log("Toggle code clicked, current showCode:", showCode);
-    setShowCode(!showCode);
+    setShowCode((prev) => !prev);
   };
 
   const exampleCode = `// Edge Function (backend) - NON espone l'API key
@@ -398,11 +397,11 @@ serve(async (req) => {
       <AnimatePresence>
         {showCode && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="overflow-hidden"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.2 }}
+            className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-4"
           >
             <CodeBlock code={exampleCode} language="typescript" showLineNumbers />
           </motion.div>
