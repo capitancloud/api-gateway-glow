@@ -8,7 +8,14 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { Search, Loader2, Cloud, Thermometer, Wind, Droplets, MapPin, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Loader2, Cloud, Thermometer, Wind, Droplets, MapPin, AlertCircle, ChevronDown, ChevronUp, Gauge } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CodeBlock } from "@/components/ui/CodeBlock";
@@ -111,6 +118,10 @@ export const ApiDemo = () => {
   const [error, setError] = useState<string | null>(null);
   const [showCode, setShowCode] = useState(false);
   const [flowStep, setFlowStep] = useState<FlowStep>("idle");
+  const [animationSpeed, setAnimationSpeed] = useState<"slow" | "normal" | "fast">("normal");
+
+  // Moltiplicatore velocità: slow = 2x più lento, normal = 1x, fast = 0.5x più veloce
+  const speedMultiplier = animationSpeed === "slow" ? 2 : animationSpeed === "fast" ? 0.5 : 1;
 
   /**
    * Simula una chiamata API con animazioni step-by-step
@@ -125,19 +136,19 @@ export const ApiDemo = () => {
 
     // Step 1: Sending to backend
     setFlowStep("sending-to-backend");
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise((resolve) => setTimeout(resolve, 800 * speedMultiplier));
 
     // Step 2: Backend processing (loading API key)
     setFlowStep("backend-processing");
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000 * speedMultiplier));
 
     // Step 3: Calling external API
     setFlowStep("calling-api");
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000 * speedMultiplier));
 
     // Step 4: Receiving response
     setFlowStep("api-responding");
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise((resolve) => setTimeout(resolve, 800 * speedMultiplier));
 
     const normalizedQuery = query.toLowerCase().replace(/\s+/g, "_");
     const data = mockWeatherData[normalizedQuery];
@@ -145,7 +156,7 @@ export const ApiDemo = () => {
     if (data) {
       // Step 5: Normalizing data
       setFlowStep("normalizing");
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await new Promise((resolve) => setTimeout(resolve, 1200 * speedMultiplier));
 
       // Step 6: Complete
       setFlowStep("complete");
@@ -224,34 +235,50 @@ serve(async (req) => {
 
       {/* Search input */}
       <div className="bg-card/30 backdrop-blur-sm rounded-2xl border border-border/50 p-6">
-        <div className="flex gap-4">
-        <div className="relative flex-1">
-          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Inserisci una città (es: Roma, Milano, Tokyo...)"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !loading && handleSearch()}
-            disabled={loading}
-            className="pl-10 h-12 bg-muted border-border focus:border-primary focus:ring-primary disabled:opacity-50"
-          />
-        </div>
-          <Button 
-            type="button"
-            onClick={() => {
-              console.log("Button clicked, query:", query);
-              handleSearch();
-            }}
-            disabled={loading || !query.trim()}
-            className="h-12 px-8 bg-primary text-primary-foreground hover:bg-primary/90 glow-primary"
-          >
-            {loading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Search className="w-5 h-5" />
-            )}
-          </Button>
+        <div className="flex flex-col gap-4">
+          {/* Speed selector */}
+          <div className="flex items-center gap-3">
+            <Gauge className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Velocità animazione:</span>
+            <Select value={animationSpeed} onValueChange={(v) => setAnimationSpeed(v as "slow" | "normal" | "fast")}>
+              <SelectTrigger className="w-[140px] h-9 bg-muted border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="slow">🐢 Lenta</SelectItem>
+                <SelectItem value="normal">🚶 Normale</SelectItem>
+                <SelectItem value="fast">🚀 Veloce</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Search row */}
+          <div className="flex gap-4">
+            <div className="relative flex-1">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Inserisci una città (es: Roma, Milano, Tokyo...)"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !loading && handleSearch()}
+                disabled={loading}
+                className="pl-10 h-12 bg-muted border-border focus:border-primary focus:ring-primary disabled:opacity-50"
+              />
+            </div>
+            <Button 
+              type="button"
+              onClick={handleSearch}
+              disabled={loading || !query.trim()}
+              className="h-12 px-8 bg-primary text-primary-foreground hover:bg-primary/90 glow-primary"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Search className="w-5 h-5" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
