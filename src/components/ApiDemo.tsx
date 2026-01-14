@@ -3,19 +3,7 @@
  * =================
  * 
  * Componente interattivo per dimostrare come funziona una chiamata API.
- * 
- * NOTA EDUCATIVA:
- * ---------------
- * Questa è una demo che simula una chiamata API. In un'applicazione reale,
- * la chiamata verrebbe effettuata attraverso un backend (edge function)
- * per proteggere le API key e gestire la logica server-side.
- * 
- * Flusso tipico:
- * 1. L'utente inserisce un input (es: città per il meteo)
- * 2. Il frontend invia la richiesta al nostro backend
- * 3. Il backend chiama l'API esterna usando la API key (mai esposta al client!)
- * 4. Il backend normalizza i dati e li restituisce al frontend
- * 5. Il frontend visualizza i dati in modo user-friendly
+ * Include animazioni del flusso in tempo reale per visualizzare ogni step.
  */
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,14 +12,10 @@ import { Search, Loader2, Cloud, Thermometer, Wind, Droplets, MapPin, AlertCircl
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CodeBlock } from "@/components/ui/CodeBlock";
+import { ApiFlowAnimation, FlowStep } from "@/components/ApiFlowAnimation";
 
 /**
  * Interfaccia per i dati meteo normalizzati
- * 
- * NORMALIZZAZIONE:
- * Quando riceviamo dati da un'API esterna, spesso sono in un formato
- * complesso o non ottimale per la nostra UI. La normalizzazione 
- * trasforma questi dati in una struttura più semplice e consistente.
  */
 interface WeatherData {
   city: string;
@@ -45,7 +29,6 @@ interface WeatherData {
 
 /**
  * Dati di esempio per la demo (simulazione API response)
- * In produzione, questi dati verrebbero da un'API reale come OpenWeatherMap
  */
 const mockWeatherData: Record<string, WeatherData> = {
   roma: {
@@ -93,32 +76,29 @@ const mockWeatherData: Record<string, WeatherData> = {
     windSpeed: 18,
     icon: "⛅",
   },
+  parigi: {
+    city: "Parigi",
+    country: "FR",
+    temperature: 16,
+    description: "Nuvoloso",
+    humidity: 70,
+    windSpeed: 10,
+    icon: "☁️",
+  },
+  tokyo: {
+    city: "Tokyo",
+    country: "JP",
+    temperature: 28,
+    description: "Umido e caldo",
+    humidity: 85,
+    windSpeed: 5,
+    icon: "🌡️",
+  },
 };
 
-/**
- * Funzione per normalizzare la risposta dell'API
- * 
- * In un'applicazione reale, questa funzione trasformerebbe
- * la risposta grezza dell'API in un formato più gestibile.
- * 
- * Esempio di risposta grezza da OpenWeatherMap:
- * {
- *   "main": { "temp": 295.15, "humidity": 45 },
- *   "weather": [{ "description": "clear sky" }],
- *   "wind": { "speed": 3.5 },
- *   "name": "Roma",
- *   "sys": { "country": "IT" }
- * }
- * 
- * Viene trasformata in un oggetto più semplice e con unità convertite
- */
 const normalizeWeatherData = (rawData: WeatherData): WeatherData => {
-  // In questo esempio i dati sono già "normalizzati"
-  // Ma in produzione qui convertiremmo Kelvin → Celsius,
-  // tradurremmo le descrizioni, ecc.
   return {
     ...rawData,
-    // Esempio: potremmo arrotondare la temperatura
     temperature: Math.round(rawData.temperature),
   };
 };
@@ -129,15 +109,10 @@ export const ApiDemo = () => {
   const [result, setResult] = useState<WeatherData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCode, setShowCode] = useState(false);
+  const [flowStep, setFlowStep] = useState<FlowStep>("idle");
 
   /**
-   * Simula una chiamata API
-   * 
-   * In produzione, questa funzione chiamerebbe una edge function:
-   * const response = await fetch('/api/weather', {
-   *   method: 'POST',
-   *   body: JSON.stringify({ city: query })
-   * });
+   * Simula una chiamata API con animazioni step-by-step
    */
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -146,21 +121,52 @@ export const ApiDemo = () => {
     setError(null);
     setResult(null);
 
-    // Simula latenza di rete
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    // Step 1: Sending to backend
+    setFlowStep("sending-to-backend");
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    // Step 2: Backend processing (loading API key)
+    setFlowStep("backend-processing");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Step 3: Calling external API
+    setFlowStep("calling-api");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Step 4: Receiving response
+    setFlowStep("api-responding");
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
     const normalizedQuery = query.toLowerCase().replace(/\s+/g, "_");
     const data = mockWeatherData[normalizedQuery];
 
     if (data) {
-      // Normalizza i dati prima di mostrarli
+      // Step 5: Normalizing data
+      setFlowStep("normalizing");
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+
+      // Step 6: Complete
+      setFlowStep("complete");
       const normalizedData = normalizeWeatherData(data);
       setResult(normalizedData);
     } else {
-      setError(`Città "${query}" non trovata. Prova: Roma, Milano, Napoli, Londra, New York`);
+      setFlowStep("error");
+      setError(`Città "${query}" non trovata. Prova: Roma, Milano, Napoli, Londra, Parigi, Tokyo, New York`);
     }
 
     setLoading(false);
+    
+    // Reset to idle after a while
+    setTimeout(() => {
+      if (!loading) setFlowStep("idle");
+    }, 3000);
+  };
+
+  const handleReset = () => {
+    setQuery("");
+    setResult(null);
+    setError(null);
+    setFlowStep("idle");
   };
 
   const exampleCode = `// Edge Function (backend) - NON espone l'API key
@@ -193,17 +199,21 @@ serve(async (req) => {
 
   return (
     <div className="space-y-6">
+      {/* Flow Animation */}
+      <ApiFlowAnimation currentStep={flowStep} query={query} />
+
       {/* Search input */}
       <div className="flex gap-3">
         <div className="relative flex-1">
           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Inserisci una città (es: Roma, Milano, Londra...)"
+            placeholder="Inserisci una città (es: Roma, Milano, Tokyo...)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="pl-10 h-12 bg-muted border-border focus:border-primary focus:ring-primary"
+            onKeyDown={(e) => e.key === "Enter" && !loading && handleSearch()}
+            disabled={loading}
+            className="pl-10 h-12 bg-muted border-border focus:border-primary focus:ring-primary disabled:opacity-50"
           />
         </div>
         <Button 
@@ -221,24 +231,6 @@ serve(async (req) => {
 
       {/* Results area */}
       <AnimatePresence mode="wait">
-        {loading && (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="glass rounded-xl p-8 text-center"
-          >
-            <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">
-              Chiamata API in corso...
-            </p>
-            <p className="text-sm text-muted-foreground/60 mt-2">
-              (In produzione: Frontend → Backend → API Esterna)
-            </p>
-          </motion.div>
-        )}
-
         {error && (
           <motion.div
             key="error"
@@ -252,6 +244,14 @@ serve(async (req) => {
               <div>
                 <p className="text-destructive font-medium">Errore API</p>
                 <p className="text-muted-foreground text-sm mt-1">{error}</p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleReset}
+                  className="mt-3 text-primary"
+                >
+                  Riprova
+                </Button>
               </div>
             </div>
           </motion.div>
@@ -274,7 +274,14 @@ serve(async (req) => {
                   </h3>
                   <p className="text-muted-foreground">{result.description}</p>
                 </div>
-                <div className="text-6xl">{result.icon}</div>
+                <motion.div 
+                  className="text-6xl"
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+                >
+                  {result.icon}
+                </motion.div>
               </div>
             </div>
 
@@ -282,9 +289,9 @@ serve(async (req) => {
             <div className="grid grid-cols-3 gap-4 p-6">
               <motion.div 
                 className="text-center"
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
+                transition={{ delay: 0.3 }}
               >
                 <Thermometer className="w-6 h-6 text-primary mx-auto mb-2" />
                 <p className="text-3xl font-bold text-foreground">{result.temperature}°C</p>
@@ -293,9 +300,9 @@ serve(async (req) => {
 
               <motion.div 
                 className="text-center"
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+                transition={{ delay: 0.4 }}
               >
                 <Droplets className="w-6 h-6 text-primary mx-auto mb-2" />
                 <p className="text-3xl font-bold text-foreground">{result.humidity}%</p>
@@ -304,9 +311,9 @@ serve(async (req) => {
 
               <motion.div 
                 className="text-center"
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
+                transition={{ delay: 0.5 }}
               >
                 <Wind className="w-6 h-6 text-primary mx-auto mb-2" />
                 <p className="text-3xl font-bold text-foreground">{result.windSpeed} km/h</p>
@@ -315,11 +322,24 @@ serve(async (req) => {
             </div>
 
             {/* Data normalized badge */}
-            <div className="px-6 pb-6">
-              <div className="flex items-center gap-2 text-xs text-success bg-success/10 px-3 py-2 rounded-md w-fit">
+            <div className="px-6 pb-6 flex items-center justify-between">
+              <motion.div 
+                className="flex items-center gap-2 text-xs text-success bg-success/10 px-3 py-2 rounded-md"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.6 }}
+              >
                 <Cloud className="w-4 h-4" />
                 <span>Dati normalizzati e pronti per la UI</span>
-              </div>
+              </motion.div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleReset}
+                className="text-muted-foreground hover:text-primary"
+              >
+                Nuova ricerca
+              </Button>
             </div>
           </motion.div>
         )}
