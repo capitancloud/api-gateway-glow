@@ -9,6 +9,7 @@
 import { motion } from "framer-motion";
 import { Check, Circle, Loader2, AlertCircle } from "lucide-react";
 import { FlowStep } from "./ApiFlowAnimation";
+import { FLOW_STEP_ORDER } from "@/lib/constants";
 
 interface FlowTimelineProps {
   currentStep: FlowStep;
@@ -66,17 +67,8 @@ export const FlowTimeline = ({ currentStep }: FlowTimelineProps) => {
       return stepId === "complete" ? "error" : "pending";
     }
 
-    const stepOrder: FlowStep[] = [
-      "sending-to-backend",
-      "backend-processing",
-      "calling-api",
-      "api-responding",
-      "normalizing",
-      "complete",
-    ];
-
-    const currentIndex = stepOrder.indexOf(currentStep);
-    const stepIndex = stepOrder.indexOf(stepId);
+    const currentIndex = FLOW_STEP_ORDER.indexOf(currentStep);
+    const stepIndex = FLOW_STEP_ORDER.indexOf(stepId);
 
     if (stepIndex < currentIndex) return "completed";
     if (stepIndex === currentIndex) return "active";

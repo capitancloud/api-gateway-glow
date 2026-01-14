@@ -7,7 +7,7 @@
  */
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Search, Loader2, Cloud, Thermometer, Wind, Droplets, MapPin, AlertCircle, Gauge, Play, Pause, ArrowRight } from "lucide-react";
 import {
   Select,
@@ -18,236 +18,56 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ApiFlowAnimation, FlowStep } from "@/components/ApiFlowAnimation";
+import { ApiFlowAnimation } from "@/components/ApiFlowAnimation";
 import { DemoLiveCodePanel } from "@/components/DemoLiveCodePanel";
 import { FlowTimeline } from "@/components/FlowTimeline";
 import { StepExplanationPanel } from "@/components/StepExplanationPanel";
-
-/**
- * Interfaccia per i dati meteo normalizzati
- */
-interface WeatherData {
-  city: string;
-  country: string;
-  temperature: number;
-  description: string;
-  humidity: number;
-  windSpeed: number;
-  icon: string;
-}
-
-/**
- * Dati di esempio per la demo (simulazione API response)
- */
-const mockWeatherData: Record<string, WeatherData> = {
-  roma: {
-    city: "Roma",
-    country: "IT",
-    temperature: 22,
-    description: "Cielo sereno",
-    humidity: 45,
-    windSpeed: 12,
-    icon: "☀️",
-  },
-  milano: {
-    city: "Milano",
-    country: "IT",
-    temperature: 18,
-    description: "Nuvoloso",
-    humidity: 65,
-    windSpeed: 8,
-    icon: "☁️",
-  },
-  napoli: {
-    city: "Napoli",
-    country: "IT",
-    temperature: 25,
-    description: "Soleggiato",
-    humidity: 55,
-    windSpeed: 15,
-    icon: "🌤️",
-  },
-  londra: {
-    city: "Londra",
-    country: "UK",
-    temperature: 14,
-    description: "Pioggia leggera",
-    humidity: 80,
-    windSpeed: 20,
-    icon: "🌧️",
-  },
-  new_york: {
-    city: "New York",
-    country: "US",
-    temperature: 20,
-    description: "Parzialmente nuvoloso",
-    humidity: 50,
-    windSpeed: 18,
-    icon: "⛅",
-  },
-  parigi: {
-    city: "Parigi",
-    country: "FR",
-    temperature: 16,
-    description: "Nuvoloso",
-    humidity: 70,
-    windSpeed: 10,
-    icon: "☁️",
-  },
-  tokyo: {
-    city: "Tokyo",
-    country: "JP",
-    temperature: 28,
-    description: "Umido e caldo",
-    humidity: 85,
-    windSpeed: 5,
-    icon: "🌡️",
-  },
-};
-
-const normalizeWeatherData = (rawData: WeatherData): WeatherData => {
-  return {
-    ...rawData,
-    temperature: Math.round(rawData.temperature),
-  };
-};
+import { DataComparison } from "@/components/DataComparison";
+import { useApiFlow } from "@/hooks/useApiFlow";
+import { FLOW_STEP_ORDER, STEP_MESSAGES } from "@/lib/constants";
+import { AnimationSpeed } from "@/lib/types";
 
 export const ApiDemo = () => {
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<WeatherData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [flowStep, setFlowStep] = useState<FlowStep>("idle");
-  const [animationSpeed, setAnimationSpeed] = useState<"slow" | "normal" | "fast">("normal");
+  const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>("normal");
   const [manualMode, setManualMode] = useState(false);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [pendingQuery, setPendingQuery] = useState<string>("");
 
-  // Ordine degli step per la navigazione manuale
-  const stepOrder: FlowStep[] = [
-    "sending-to-backend",
-    "backend-processing",
-    "calling-api",
-    "api-responding",
-    "normalizing",
-    "complete"
-  ];
+  const {
+    flowStep,
+    currentStepIndex,
+    loading,
+    error,
+    result,
+    startFlow,
+    nextStep,
+    reset: resetFlow,
+  } = useApiFlow({
+    manualMode,
+    animationSpeed,
+  });
 
-  // Messaggi per ogni step
-  const stepMessages: Record<FlowStep, string> = {
-    idle: "In attesa di una richiesta...",
-    "sending-to-backend": "📤 Invio richiesta al backend...",
-    "backend-processing": "⚙️ Backend: lettura API key dalle variabili d'ambiente...",
-    "calling-api": "🌐 Chiamata all'API esterna in corso...",
-    "api-responding": "📥 Ricezione dati grezzi dall'API...",
-    normalizing: "✨ Normalizzazione dei dati in corso...",
-    complete: "✅ Dati pronti per la visualizzazione!",
-    error: "❌ Errore nella chiamata API",
-  };
-
-  // Moltiplicatore velocità: slow = 2x più lento, normal = 1x, fast = 0.5x più veloce
-  const speedMultiplier = animationSpeed === "slow" ? 2 : animationSpeed === "fast" ? 0.5 : 1;
-
-  /**
-   * Procede al prossimo step in modalità manuale
-   */
-  const nextStep = () => {
-    if (currentStepIndex < stepOrder.length - 1) {
-      const nextIndex = currentStepIndex + 1;
-      setCurrentStepIndex(nextIndex);
-      const nextStep = stepOrder[nextIndex];
-      setFlowStep(nextStep);
-
-      // Se siamo allo step "normalizing", verifica i dati
-      if (nextStep === "normalizing") {
-        const normalizedQuery = pendingQuery.toLowerCase().replace(/\s+/g, "_");
-        const data = mockWeatherData[normalizedQuery];
-        
-        if (data) {
-          // Procedi normalmente
-        } else {
-          setFlowStep("error");
-          setError(`Città "${pendingQuery}" non trovata. Prova: Roma, Milano, Napoli, Londra, Parigi, Tokyo, New York`);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Se siamo allo step "complete", finalizza
-      if (nextStep === "complete") {
-        const normalizedQuery = pendingQuery.toLowerCase().replace(/\s+/g, "_");
-        const data = mockWeatherData[normalizedQuery];
-        if (data) {
-          const normalizedData = normalizeWeatherData(data);
-          setResult(normalizedData);
-        }
-        setLoading(false);
-      }
-    }
-  };
-
-  /**
-   * Simula una chiamata API con animazioni step-by-step
-   */
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
+    await startFlow(query);
+  }, [query, startFlow]);
 
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    setPendingQuery(query);
-
-    if (manualMode) {
-      // Modalità manuale: inizia dal primo step
-      setCurrentStepIndex(0);
-      setFlowStep(stepOrder[0]);
-    } else {
-      // Modalità automatica: procedi automaticamente
-      // Step 1: Sending to backend
-      setFlowStep("sending-to-backend");
-      await new Promise((resolve) => setTimeout(resolve, 800 * speedMultiplier));
-
-      // Step 2: Backend processing (loading API key)
-      setFlowStep("backend-processing");
-      await new Promise((resolve) => setTimeout(resolve, 1000 * speedMultiplier));
-
-      // Step 3: Calling external API
-      setFlowStep("calling-api");
-      await new Promise((resolve) => setTimeout(resolve, 1000 * speedMultiplier));
-
-      // Step 4: Receiving response
-      setFlowStep("api-responding");
-      await new Promise((resolve) => setTimeout(resolve, 800 * speedMultiplier));
-
-      const normalizedQuery = query.toLowerCase().replace(/\s+/g, "_");
-      const data = mockWeatherData[normalizedQuery];
-
-      if (data) {
-        // Step 5: Normalizing data
-        setFlowStep("normalizing");
-        await new Promise((resolve) => setTimeout(resolve, 1200 * speedMultiplier));
-
-        // Step 6: Complete
-        setFlowStep("complete");
-        const normalizedData = normalizeWeatherData(data);
-        setResult(normalizedData);
-      } else {
-        setFlowStep("error");
-        setError(`Città "${query}" non trovata. Prova: Roma, Milano, Napoli, Londra, Parigi, Tokyo, New York`);
-      }
-
-      setLoading(false);
-    }
-  };
-
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setQuery("");
-    setResult(null);
-    setError(null);
-    setFlowStep("idle");
-    setCurrentStepIndex(0);
-    setPendingQuery("");
-  };
+    resetFlow();
+  }, [resetFlow]);
+
+  const handleModeToggle = useCallback(() => {
+    const newManualMode = !manualMode;
+    setManualMode(newManualMode);
+    if (newManualMode && loading) {
+      handleReset();
+    }
+  }, [manualMode, loading, handleReset]);
+
+  const isLastStep = useMemo(
+    () => currentStepIndex >= FLOW_STEP_ORDER.length - 1,
+    [currentStepIndex]
+  );
 
   return (
     <div className="space-y-6">
@@ -293,6 +113,18 @@ export const ApiDemo = () => {
         />
       </div>
 
+      {/* Data Comparison - Show when data is normalized and available */}
+      {result && flowStep === "complete" && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border/50 p-6"
+        >
+          <DataComparison city={query} normalizedData={result} />
+        </motion.div>
+      )}
+
       {/* Search input */}
       <div className="bg-card/30 backdrop-blur-sm rounded-2xl border border-border/50 p-6">
         <div className="flex flex-col gap-4">
@@ -323,14 +155,7 @@ export const ApiDemo = () => {
                 type="button"
                 variant={manualMode ? "default" : "outline"}
                 size="sm"
-                onClick={() => {
-                  const newManualMode = !manualMode;
-                  setManualMode(newManualMode);
-                  // Se si passa a manuale durante una ricerca, resetta
-                  if (newManualMode && loading) {
-                    handleReset();
-                  }
-                }}
+                onClick={handleModeToggle}
                 disabled={loading && !manualMode}
                 className="gap-2"
               >
@@ -358,17 +183,17 @@ export const ApiDemo = () => {
             >
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-foreground">
-                  Step {currentStepIndex + 1} di {stepOrder.length}
+                  Step {currentStepIndex + 1} di {FLOW_STEP_ORDER.length}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  ({stepMessages[flowStep]})
+                  ({STEP_MESSAGES[flowStep]})
                 </span>
               </div>
               <Button
                 type="button"
                 onClick={nextStep}
                 className="gap-2"
-                disabled={currentStepIndex >= stepOrder.length - 1}
+                disabled={isLastStep}
               >
                 <ArrowRight className="w-4 h-4" />
                 Prossimo step
@@ -385,7 +210,11 @@ export const ApiDemo = () => {
                 placeholder="Inserisci una città (es: Roma, Milano, Tokyo...)"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !loading && handleSearch()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !loading) {
+                    handleSearch();
+                  }
+                }}
                 disabled={loading}
                 className="pl-10 h-12 bg-muted border-border focus:border-primary focus:ring-primary disabled:opacity-50"
               />

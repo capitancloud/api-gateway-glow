@@ -11,13 +11,12 @@ if (!rootElement) {
 try {
   const root = createRoot(rootElement);
   root.render(<App />);
-  console.log("✅ App rendered successfully");
 } catch (error) {
-  console.error("❌ Error rendering app:", error);
+  // Error boundary fallback
   rootElement.innerHTML = `
-    <div style="color: white; padding: 20px; font-family: monospace;">
+    <div style="color: white; padding: 20px; font-family: monospace; background: #1a1a1a;">
       <h1>Error rendering app</h1>
-      <pre>${error}</pre>
+      <pre style="color: #ff6b6b;">${error instanceof Error ? error.message : String(error)}</pre>
     </div>
   `;
 }

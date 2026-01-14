@@ -17,6 +17,7 @@ import {
   FileJson,
   Sparkles
 } from "lucide-react";
+import { STEP_MESSAGES } from "@/lib/constants";
 
 export type FlowStep = 
   | "idle" 
@@ -33,16 +34,6 @@ interface ApiFlowAnimationProps {
   query?: string;
 }
 
-const stepMessages: Record<FlowStep, string> = {
-  idle: "In attesa di una richiesta...",
-  "sending-to-backend": "📤 Invio richiesta al backend...",
-  "backend-processing": "⚙️ Backend: lettura API key dalle variabili d'ambiente...",
-  "calling-api": "🌐 Chiamata all'API esterna in corso...",
-  "api-responding": "📥 Ricezione dati grezzi dall'API...",
-  normalizing: "✨ Normalizzazione dei dati in corso...",
-  complete: "✅ Dati pronti per la visualizzazione!",
-  error: "❌ Errore nella chiamata API",
-};
 
 export const ApiFlowAnimation = ({ currentStep, query }: ApiFlowAnimationProps) => {
   const isActive = (step: FlowStep | FlowStep[]) => {
@@ -90,7 +81,7 @@ export const ApiFlowAnimation = ({ currentStep, query }: ApiFlowAnimationProps) 
             currentStep === "complete" ? "text-success" : 
             "text-primary"
           }`}>
-            {stepMessages[currentStep]}
+            {STEP_MESSAGES[currentStep]}
           </span>
         </motion.div>
       </AnimatePresence>
