@@ -156,7 +156,7 @@ const normalized = {
 
   return (
     <motion.div 
-      className="glass rounded-xl overflow-hidden"
+      className="glass rounded-xl overflow-hidden h-full"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
@@ -214,7 +214,7 @@ const normalized = {
       </div>
 
       {/* Code content */}
-      <div className="p-4 max-h-[300px] overflow-auto">
+      <div className="p-4 flex-1 overflow-auto">
         <AnimatePresence mode="wait">
           <motion.pre
             key={flowStep}
